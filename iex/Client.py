@@ -16,23 +16,29 @@ class Client(object):
         # save off all the symbols the exchange knows about so we can reference later
         self.symbols = {x['symbol']: x['name'] for x in res.json()}
 
-    def get_price(self, stocks):
+    def get_name(self, symbols):
+        if not isinstance(symbols, list):
+            symbols = [symbols]
+
+        return {s: self.symbols[s] for s in filter(lambda s: s in self.symbols, [str(s).upper() for s in symbols])}
+
+    def get_price(self, symbols):
         """
         Gets the price of the last trade of a stock or list of stocks.
-        :param stocks: a single stock or list of stocks to fetch
+        :param symbols: a single stock or list of stocks to fetch
         :return: dict with uppercase symbols and prices, any unknown symbols are discarded
         """
-        if not isinstance(stocks, list):
-            stocks = [stocks]  # create a list
+        if not isinstance(symbols, list):
+            symbols = [symbols]  # create a list
 
         # filter and quote the list
-        stocks = [quote_plus(s) for s in filter(lambda s: s in self.symbols, [str(s).upper() for s in stocks])]
+        symbols = [quote_plus(s) for s in filter(lambda s: s in self.symbols, [str(s).upper() for s in symbols])]
 
-        if len(stocks) == 0:
+        if len(symbols) == 0:
             return {}
 
         # make the request, getting only symbol and price
-        res = self.session.get(_BASE_URL + '/tops/last?symbols=%s&filter=symbol,price'%','.join(stocks))
+        res = self.session.get(_BASE_URL + '/tops/last?symbols=%s&filter=symbol,price' %','.join(symbols))
 
         return {x['symbol']: x['price'] for x in res.json()}
 

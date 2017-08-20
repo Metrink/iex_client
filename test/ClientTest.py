@@ -13,12 +13,22 @@ class ClientTest(unittest.TestCase):
         assert 'FB' in prices, 'FB not found'
         assert 'ZZAA' not in prices, 'ZZAA found'
 
+    def test_get_price_single(self):
+        prices = c.get_price('aapl')
 
-def test_get_price_single(self):
-    prices = c.get_price('aapl')
+        assert 'AAPL' in prices, 'AAPL not found'
 
-    assert 'AAPL' in prices, 'AAPL not found'
+    def test_get_name_list(self):
+        names = c.get_name(['aapl', 'fb', 'zzaa'])
 
+        assert 'AAPL' in names, 'AAPL not found'
+        assert 'FB' in names, 'FB not found'
+        assert 'ZZAA' not in names, 'ZZAA found'
+
+    def test_get_name(self):
+        names = c.get_name('aapl')
+
+        assert 'AAPL' in names, 'AAPL not found'
 
 if __name__ == '__main__':
     unittest.main()
