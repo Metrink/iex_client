@@ -30,5 +30,10 @@ class ClientTest(unittest.TestCase):
 
         assert 'AAPL' in names, 'AAPL not found'
 
+    def test_get_news_list(self):
+        news = c.get_news(['aapl', 'fb', 'zzaa'])
+
+        assert len(news) > 0, 'Did not find any news'
+
 if __name__ == '__main__':
     unittest.main()
