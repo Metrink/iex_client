@@ -6,18 +6,6 @@ c = Client()  # call this once so we can re-use sessions
 
 
 class ClientTest(unittest.TestCase):
-    def test_get_price_list(self):
-        prices = c.get_price(['aapl', 'fb', 'zzaa'])
-
-        assert 'AAPL' in prices, 'AAPL not found'
-        assert 'FB' in prices, 'FB not found'
-        assert 'ZZAA' not in prices, 'ZZAA found'
-
-    def test_get_price_single(self):
-        prices = c.get_price('aapl')
-
-        assert 'AAPL' in prices, 'AAPL not found'
-
     def test_get_name_list(self):
         names = c.get_name(['aapl', 'fb', 'zzaa'])
 
@@ -29,6 +17,31 @@ class ClientTest(unittest.TestCase):
         names = c.get_name('aapl')
 
         assert 'AAPL' in names, 'AAPL not found'
+
+    def test_find_symbol_found(self):
+        res = c.find_symbol('aapl')
+        assert len(res) >= 1, 'Could not find aapl'
+
+        res = c.find_symbol('GOOG')
+        assert len(res) >= 1, 'Could not find GOOG'
+
+        res = c.find_symbol('Apple')
+        assert len(res) >= 1, 'Could not find Apple'
+
+        res = c.find_symbol('facebook')
+        assert len(res) >= 1, 'Could not find facebook'
+
+    def test_get_price_list(self):
+        prices = c.get_price(['aapl', 'fb', 'zzaa'])
+
+        assert 'AAPL' in prices, 'AAPL not found'
+        assert 'FB' in prices, 'FB not found'
+        assert 'ZZAA' not in prices, 'ZZAA found'
+
+    def test_get_price_single(self):
+        prices = c.get_price('aapl')
+
+        assert 'AAPL' in prices, 'AAPL not found'
 
     def test_get_news_list(self):
         news = c.get_news(['aapl', 'fb', 'zzaa'])

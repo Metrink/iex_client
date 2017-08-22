@@ -27,6 +27,21 @@ class Client(object):
     def get_name(self, symbols):
         return {s: self.symbols[s] for s in self._fix_symbols(symbols)}
 
+    def find_symbol(self, arg):
+        """
+        Attempts to find a symbol given either a symbol, partial symbol, name or partial name.
+        :param arg: the string to search for
+        :return: a dictionary of symbol name combinations
+        """
+        arg = str(arg).lower()
+        ret = {}
+
+        for s,n in self.symbols.items():
+            if arg in str(s).lower() or arg in str(n).lower():
+                ret[s] = n
+
+        return ret
+
     def get_price(self, symbols):
         """
         Gets the price of the last trade of a stock or list of stocks.
