@@ -35,6 +35,11 @@ class Client(object):
         return list(filter(lambda s: s in self.symbols, [str(s).upper() for s in symbols]))
 
     def get_name(self, symbols):
+        """
+        Given a symbol(s), return the company name(s) if found
+        :param symbols: the symbol(s) to look up
+        :return: a dict containing symbol: name
+        """
         return {s: self.symbols[s] for s in self._fix_symbols(symbols)}
 
     def find_symbol(self, arg):
