@@ -43,6 +43,12 @@ class ClientTest(unittest.TestCase):
 
         assert 'AAPL' in prices, 'AAPL not found'
 
+    def test_get_quote(self):
+        quote = c.get_quote('aapl')
+
+        assert len(quote) != 0, 'Empty quote'
+        assert quote['symbol'] == 'AAPL', 'Wrong quote'
+
     def test_get_news_list(self):
         news = c.get_news(['aapl', 'fb', 'zzaa'])
 

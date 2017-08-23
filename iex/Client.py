@@ -34,6 +34,23 @@ class Client(object):
 
         return list(filter(lambda s: s in self.symbols, [str(s).upper() for s in symbols]))
 
+    @staticmethod
+    def _add_pretty_numbers(arg):
+        if not isinstance(arg, dict):
+            raise ValueError('Arg must be a dictionary')
+
+        ret = {}
+
+        for k,v in arg.items():
+            if isinstance(v, int):
+                ret[k+'_s'] = "{:,}".format(v)
+            elif isinstance(v, float):
+                ret[k+'_s'] = "{:,.2f}".format(v)
+            else:
+                ret[k] = v
+
+        return ret
+
     def get_name(self, symbols):
         """
         Given a symbol(s), return the company name(s) if found
@@ -80,7 +97,30 @@ class Client(object):
         # make the request, getting only symbol and price
         res = self.session.get(_BASE_URL + '/tops/last?symbols=%s&filter=symbol,price' %','.join(symbols))
 
+        if res.status_code != 200:
+            raise requests.RequestException(kwargs={'response': res})
+
         return {x['symbol']: x['price'] for x in res.json()}
+
+    def get_quote(self, symbol):
+        if isinstance(symbol, list):
+            raise ValueError('Symbol must be a single symbol and not a list')
+
+        # quote the list
+        symbols = [quote_plus(s) for s in self._fix_symbols(symbol)]
+
+        if len(symbols) == 0:
+            return {}
+        else:
+            symbol = symbols[0]
+
+        # make the request
+        res = self.session.get(_BASE_URL + '/stock/%s/quote'%symbol)
+
+        if res.status_code != 200:
+            raise requests.RequestException(kwargs={'response': res})
+
+        return Client._add_pretty_numbers(res.json())
 
     def get_news(self, symbols, num_stories=10):
         """
