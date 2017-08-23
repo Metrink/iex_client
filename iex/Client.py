@@ -1,4 +1,5 @@
 import requests
+import memcache
 
 from urllib.parse import quote_plus
 
@@ -8,15 +9,24 @@ _BASE_URL = 'https://api.iextrading.com/1.0'
 
 
 class Client(object):
-    def __init__(self):
+    def __init__(self, memcache=memcache.Client(['127.0.0.1:11211'], debug=0)):
+        self.mc = memcache
         self.session = requests.Session()  # setup a session for reuse
-        res = self.session.get(_BASE_URL + '/ref-data/symbols?filter=symbol,name')
 
-        if res.status_code != 200:
-            raise requests.RequestException(kwargs={'response': res})
+        # try and get the symbols from the cache first
+        self.symbols = self.mc.get('symbols')
 
-        # save off all the symbols the exchange knows about so we can reference later
-        self.symbols = {x['symbol']: x['name'] for x in res.json()}
+        if self.symbols is None:
+            res = self.session.get(_BASE_URL + '/ref-data/symbols?filter=symbol,name')
+
+            if res.status_code != 200:
+                raise requests.RequestException(kwargs={'response': res})
+
+            # save off all the symbols the exchange knows about
+            self.symbols = {x['symbol']: x['name'] for x in res.json()}
+
+            # add the symbols to our cache for a day
+            self.mc.set('symbols', self.symbols, 86400)
 
     def _fix_symbols(self, symbols):
         if not isinstance(symbols, list):
@@ -39,6 +49,14 @@ class Client(object):
         for s,n in self.symbols.items():
             if arg in str(s).lower() or arg in str(n).lower():
                 ret[s] = n
+
+        return ret
+
+    def get_symbols(self):
+        ret = []
+
+        for s,n in self.symbols.items():
+            ret.append({'s': s, 'name': "%s - %s" % (s,n) })
 
         return ret
 
