@@ -54,5 +54,12 @@ class ClientTest(unittest.TestCase):
 
         assert len(news) > 0, 'Did not find any news'
 
+    def test_get_chart_data(self):
+        data = c.get_chart_data('aapl')
+
+        print(data)
+
+        assert len(data) != 0, 'Empty chart data'
+
 if __name__ == '__main__':
     unittest.main()

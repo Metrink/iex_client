@@ -1,7 +1,7 @@
 import requests
-import memcache
 
 from urllib.parse import quote_plus
+from dateutil.parser import parse
 
 from iex.News import News
 
@@ -148,6 +148,27 @@ class Client(object):
 
             for n in res.json():
                 ret.add(News.from_dict(n))
+
+        return ret
+
+    def get_chart_data(self, symbol):
+        symbols = self._fix_symbols(symbol)
+
+        if len(symbols) == 0:
+            raise ValueError('Unknown symbol: ' + symbol)
+        else:
+            symbol = symbols[0]
+
+        res = self.session.get(_BASE_URL + '/stock/%s/chart/1m'%symbol)
+
+        if res.status_code != 200:
+            raise requests.RequestException(response=res)
+
+        ret = []
+
+        for point in res.json():
+            d = parse(point['date']).strftime("%m/%d")
+            ret.append([d, point['low'], point['open'], point['close'], point['high']])
 
         return ret
 
