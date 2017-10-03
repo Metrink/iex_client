@@ -151,7 +151,16 @@ class Client(object):
 
         return ret
 
-    def get_chart_data(self, symbol):
+    def get_chart_data(self, symbol, range='1m'):
+        """
+        Return chart data used for plotting candlestick charts.
+        :param symbol: the symbol to fetch data for
+        :param range: one of 1m, 3m, 6m, 1y, 2y, 5y
+        :return: an array of arrays with [date, low, open, close, high]
+        """
+        if range not in ('1m', '3m', '6m', '1y', '2y', '5y'):
+            raise ValueError('Range error, must be one of: 1m, 3m, 6m, 1y, 2y, 5y')
+
         symbols = self._fix_symbols(symbol)
 
         if len(symbols) == 0:
@@ -159,7 +168,7 @@ class Client(object):
         else:
             symbol = symbols[0]
 
-        res = self.session.get(_BASE_URL + '/stock/%s/chart/1m'%symbol)
+        res = self.session.get(_BASE_URL + '/stock/%s/chart/%s'%(symbol, range))
 
         if res.status_code != 200:
             raise requests.RequestException(response=res)
@@ -167,7 +176,10 @@ class Client(object):
         ret = []
 
         for point in res.json():
-            d = parse(point['date']).strftime("%m/%d")
+            if 'm' in range:
+                d = parse(point['date']).strftime("%m/%d")
+            else:
+                d = parse(point['date']).strftime("%m/%d/%Y")
             ret.append([d, point['low'], point['open'], point['close'], point['high']])
 
         return ret
