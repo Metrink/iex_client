@@ -85,11 +85,11 @@ class Client(object):
 
         return ret
 
-    def get_price(self, symbols):
+    def get_quote(self, symbols):
         """
-        Gets the price of the last trade of a stock or list of stocks.
-        :param symbols: a single stock or list of stocks to fetch
-        :return: dict with uppercase symbols and prices, any unknown symbols are discarded
+        Gets a full quote for the stock or list of stocks.
+        :param symbols: the symbol or list of symbols
+        :return:
         """
         # quote the list
         symbols = [quote_plus(s) for s in self._fix_symbols(symbols)]
@@ -97,33 +97,15 @@ class Client(object):
         if len(symbols) == 0:
             return {}
 
-        # make the request, getting only symbol and price
-        res = self.session.get(_BASE_URL + '/tops/last?symbols=%s&filter=symbol,price' %','.join(symbols))
-
-        if res.status_code != 200:
-            raise requests.RequestException(response=res)
-
-        return {x['symbol']: x['price'] for x in res.json()}
-
-    def get_quote(self, symbol):
-        if isinstance(symbol, list):
-            raise ValueError('Symbol must be a single symbol and not a list')
-
-        # quote the list
-        symbols = [quote_plus(s) for s in self._fix_symbols(symbol)]
-
-        if len(symbols) == 0:
-            return {}
-        else:
-            symbol = symbols[0]
-
         # make the request
-        res = self.session.get(_BASE_URL + '/stock/%s/quote'%symbol)
+        res = self.session.get(_BASE_URL + '/stock/market/batch?symbols=%s&types=quote'%','.join(symbols))
 
         if res.status_code != 200:
             raise requests.RequestException(response=res)
 
-        return Client._add_pretty_numbers(res.json())
+        res = {k: v['quote'] for k,v in res.json().items()}
+
+        return Client._add_pretty_numbers(res)  # add pretty numbers
 
     def get_news(self, symbols, num_stories=10):
         """
@@ -183,5 +165,25 @@ class Client(object):
             ret.append([d, point['low'], point['open'], point['close'], point['high']])
 
         return ret
+
+    def get_financials(self, symbols):
+        symbols = self._fix_symbols(symbols)
+
+        if len(symbols) == 0:
+            raise ValueError('Unknown symbol: ' + str(symbols))
+
+        ret = dict()
+
+        # make the requests
+        for symbol in symbols:
+            res = self.session.get(_BASE_URL + '/stock/%s/financials'%symbol)
+
+            if res.status_code != 200:
+                raise requests.RequestException(response=res)
+
+            ret[symbol] = res.json()['financials']
+
+        return ret
+
 
 

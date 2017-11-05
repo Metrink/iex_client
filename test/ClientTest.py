@@ -31,23 +31,18 @@ class ClientTest(unittest.TestCase):
         res = c.find_symbol('facebook')
         assert len(res) >= 1, 'Could not find facebook'
 
-    def test_get_price_list(self):
-        prices = c.get_price(['aapl', 'fb', 'zzaa'])
-
-        assert 'AAPL' in prices, 'AAPL not found'
-        assert 'FB' in prices, 'FB not found'
-        assert 'ZZAA' not in prices, 'ZZAA found'
-
-    def test_get_price_single(self):
-        prices = c.get_price('aapl')
-
-        assert 'AAPL' in prices, 'AAPL not found'
-
-    def test_get_quote(self):
+    def test_get_quote_single(self):
         quote = c.get_quote('aapl')
 
         assert len(quote) != 0, 'Empty quote'
-        assert quote['symbol'] == 'AAPL', 'Wrong quote'
+        assert 'AAPL' in quote, 'Quote not found'
+
+    def test_get_quote_list(self):
+        quote = c.get_quote(['aapl','fb'])
+
+        assert len(quote) != 0, 'Empty quote'
+        assert 'AAPL' in quote, 'Quote not found'
+        assert 'FB' in quote, 'Quote not found'
 
     def test_get_news_list(self):
         news = c.get_news(['aapl', 'fb', 'zzaa'])
@@ -60,6 +55,13 @@ class ClientTest(unittest.TestCase):
         print(data)
 
         assert len(data) != 0, 'Empty chart data'
+
+    def test_get_financials(self):
+        fin = c.get_financials('aapl')
+
+        assert len(fin) != 0, 'Empty financials'
+        assert 'AAPL' in fin, 'AAPL financials not found'
+        assert len(fin['AAPL']) != 0, 'Empty financials for AAPL'
 
 if __name__ == '__main__':
     unittest.main()
