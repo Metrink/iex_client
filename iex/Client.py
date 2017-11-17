@@ -37,7 +37,7 @@ class Client(object):
         if not isinstance(symbols, list):
             symbols = [symbols]
 
-        return list(filter(lambda s: s in self.symbols, [str(s).upper() for s in symbols]))
+        return set(filter(lambda s: s in self.symbols, [str(s).upper() for s in symbols]))
 
     @staticmethod
     def _add_pretty_numbers(arg):
