@@ -148,7 +148,7 @@ class Client(object):
         if len(symbols) == 0:
             raise ValueError('Unknown symbol: ' + symbol)
         else:
-            symbol = symbols[0]
+            symbol = list(symbols)[0]
 
         res = self.session.get(_BASE_URL + '/stock/%s/chart/%s'%(symbol, range))
 
