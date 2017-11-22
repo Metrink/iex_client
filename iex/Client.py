@@ -92,6 +92,8 @@ class Client(object):
         :param symbols: the symbol or list of symbols
         :return:
         """
+        symbols = self._fix_symbols(symbols)
+
         if len(symbols) == 0:
             return {}
 
