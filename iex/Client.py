@@ -103,9 +103,7 @@ class Client(object):
         if res.status_code != 200:
             raise requests.RequestException(response=res)
 
-        res = {k: v['quote'] for k,v in res.json().items()}
-
-        return Client._add_pretty_numbers(res)  # add pretty numbers
+        return {k: Client._add_pretty_numbers(v['quote']) for k,v in res.json().items()}
 
     def get_news(self, symbols, num_stories=10):
         """
