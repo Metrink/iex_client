@@ -195,6 +195,8 @@ class Client(object):
             for report in financials['financials']['financials']:
                 ret[stock].append(Client._add_pretty_numbers(report))
 
+            ret[stock] = sorted(ret[stock], key=lambda x: x['reportDate'])
+
         return ret
 
 
