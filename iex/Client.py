@@ -34,10 +34,11 @@ class Client(object):
             self.cache.set('symbols', self.symbols, 86400)
 
     def _fix_symbols(self, symbols):
-        if not isinstance(symbols, list):
-            symbols = [symbols]
+        if isinstance(symbols, str):
+            symbols = [quote_plus(symbols.upper())]
 
-        return set(filter(lambda s: s in self.symbols, [str(s).upper() for s in symbols]))
+        # convert to uppercase, then filter anything not in the list, and map to the URL quoted version
+        return set(map(lambda s: quote_plus(s), filter(lambda s: s in self.symbols, [str(s).upper() for s in symbols])))
 
     @staticmethod
     def _add_pretty_numbers(arg):
@@ -91,9 +92,6 @@ class Client(object):
         :param symbols: the symbol or list of symbols
         :return:
         """
-        # quote the list
-        symbols = [quote_plus(s) for s in self._fix_symbols(symbols)]
-
         if len(symbols) == 0:
             return {}
 
@@ -172,23 +170,33 @@ class Client(object):
         return ret
 
     def get_financials(self, symbols):
+        """
+        Return financialls data for a symbol.
+        :param symbols:
+        :return:
+        """
         symbols = self._fix_symbols(symbols)
 
         if len(symbols) == 0:
             raise ValueError('Unknown symbol: ' + str(symbols))
 
+        # make the request
+        res = self.session.get(_BASE_URL + '/stock/market/batch?symbols=%s&types=financials'%','.join(symbols))
+
+        if res.status_code != 200:
+            raise requests.RequestException(response=res)
+
         ret = dict()
 
-        # make the requests
-        for symbol in symbols:
-            res = self.session.get(_BASE_URL + '/stock/%s/financials'%symbol)
+        # flatten out what's returned
+        for stock,financials in res.json().items():
+            ret[stock] = []
 
-            if res.status_code != 200:
-                raise requests.RequestException(response=res)
-
-            ret[symbol] = res.json()['financials']
+            for report in financials['financials']['financials']:
+                ret[stock].append(Client._add_pretty_numbers(report))
 
         return ret
+
 
 
 
