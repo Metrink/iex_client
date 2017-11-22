@@ -138,8 +138,8 @@ class Client(object):
         :param range: one of 1m, 3m, 6m, 1y, 2y, 5y
         :return: an array of arrays with [date, low, open, close, high]
         """
-        if range not in ('1m', '3m', '6m', '1y', '2y', '5y'):
-            raise ValueError('Range error, must be one of: 1m, 3m, 6m, 1y, 2y, 5y')
+        if range not in ('1d', '1m', '3m', '6m', 'ytd', '1y', '2y', '5y'):
+            raise ValueError('Range error, must be one of: 1d, 1m, 3m, 6m, ytd, 1y, 2y, 5y')
 
         symbols = self._fix_symbols(symbol)
 
@@ -156,11 +156,18 @@ class Client(object):
         ret = []
 
         for point in res.json():
-            if 'm' in range:
+            if 'd' in range:
+                d = point['label']
+            elif 'm' in range:
                 d = parse(point['date']).strftime("%m/%d")
             else:
                 d = parse(point['date']).strftime("%m/%d/%Y")
-            ret.append([d, point['low'], point['open'], point['close'], point['high']])
+
+            if 'd' in range:
+                if point['minute'].endswith('0') or point['minute'].endswith('5'):
+                    ret.append([d, point['average']])
+            else:
+                ret.append([d, point['low'], point['open'], point['close'], point['high']])
 
         return ret
 
