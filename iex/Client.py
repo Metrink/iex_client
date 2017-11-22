@@ -156,14 +156,14 @@ class Client(object):
         ret = []
 
         for point in res.json():
-            if 'd' in range:
+            if '1d' == range:
                 d = point['label']
             elif 'm' in range:
                 d = parse(point['date']).strftime("%m/%d")
             else:
                 d = parse(point['date']).strftime("%m/%d/%Y")
 
-            if 'd' in range:
+            if '1d' == range:
                 if point['minute'].endswith('0') or point['minute'].endswith('5'):
                     ret.append([d, point['average']])
             else:
