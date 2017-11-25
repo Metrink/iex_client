@@ -11,6 +11,7 @@ _BASE_URL = 'https://api.iextrading.com/1.0'
 class Client(object):
     def __init__(self, cache=None):
         self.cache = cache
+
         if cache is None:  # use memcache if none provided
             import memcache
 
@@ -167,7 +168,8 @@ class Client(object):
                 if point['minute'].endswith('0') or point['minute'].endswith('5'):
                     ret.append([d, point['average']])
             else:
-                ret.append([d, point['low'], point['open'], point['close'], point['high']])
+                avg = (point['open'] + point['close'] + point['high'] + point['low']) / 4.0
+                ret.append([d, avg, point['open'], point['close'], point['high'], point['low']])
 
         return ret
 
