@@ -218,7 +218,7 @@ class Client(object):
             ret[stock] = sorted(ret[stock], key=lambda x: x['reportDate'])
 
         self.cache.set(url, ret, time=86400)  # cache for a day
-        
+
         return ret
 
 
