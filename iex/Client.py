@@ -149,7 +149,14 @@ class Client(object):
         else:
             symbol = list(symbols)[0]
 
-        res = self.session.get(_BASE_URL + '/stock/%s/chart/%s'%(symbol, range))
+        url = _BASE_URL + '/stock/%s/chart/%s'%(symbol, range)
+
+        ret = self.cache.get(url)
+
+        if ret is not None:
+            return ret
+
+        res = self.session.get(url)
 
         if res.status_code != 200:
             raise requests.RequestException(response=res)
@@ -171,6 +178,8 @@ class Client(object):
                 avg = (point['open'] + point['close'] + point['high'] + point['low']) / 4.0
                 ret.append([d, avg, point['open'], point['close'], point['high'], point['low']])
 
+        self.cache.set(url, ret, time=86400)  # cache for a day
+
         return ret
 
     def get_financials(self, symbols):
@@ -184,8 +193,15 @@ class Client(object):
         if len(symbols) == 0:
             raise ValueError('Unknown symbol: ' + str(symbols))
 
+        url = _BASE_URL + '/stock/market/batch?symbols=%s&types=financials'%','.join(symbols)
+
+        ret = self.cache.get(url)
+
+        if ret is not None:
+            return ret
+
         # make the request
-        res = self.session.get(_BASE_URL + '/stock/market/batch?symbols=%s&types=financials'%','.join(symbols))
+        res = self.session.get(url)
 
         if res.status_code != 200:
             raise requests.RequestException(response=res)
@@ -201,6 +217,8 @@ class Client(object):
 
             ret[stock] = sorted(ret[stock], key=lambda x: x['reportDate'])
 
+        self.cache.set(url, ret, time=86400)  # cache for a day
+        
         return ret
 
 
