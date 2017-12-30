@@ -25,8 +25,6 @@ class Client(object):
             self.logger.addHandler(sh)
 
         if cache is None:  # use memcached if none provided
-            self.logger.info("Cache is none, attempting to use memcache")
-
             try:
                 import memcache
 
