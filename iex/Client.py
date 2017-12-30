@@ -21,18 +21,19 @@ class Client(object):
         sh.setFormatter(logging.Formatter('[%(asctime)s %(levelname)s] %(filename)s %(lineno)s:\t%(message)s'))
 
         # setup our logger
-        logger = logging.getLogger('iex-client')
-        logger.setLevel(logging.DEBUG)
-        logger.addHandler(sh)
+        self.logger = logging.getLogger('iex-client')
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.addHandler(sh)
 
         if cache is None:  # use memcached if none provided
-            logger.info("Cache is none, attempting to use memcache")
+            self.logger.info("Cache is none, attempting to use memcache")
+
             try:
                 import memcache
 
                 self.cache = memcache.Client(['127.0.0.1:11211'], debug=0)
             except ImportError as e:
-                logger.warn("Importing memcache failed: %s" % str(e))
+                self.logger.warning("Importing memcache failed: %s", str(e), exc_info=1)
                 self.cache = MemoryCache()
 
         self.session = requests.Session()  # setup a session for reuse
@@ -95,6 +96,8 @@ class Client(object):
             if arg in str(s).lower() or arg in str(n).lower():
                 ret[s] = n
 
+        self.logger.warning("Symbol %s not found", arg)
+
         return ret
 
     def get_symbols(self):
@@ -117,9 +120,11 @@ class Client(object):
             return {}
 
         # make the request
-        res = self.session.get(_BASE_URL + '/stock/market/batch?symbols=%s&types=quote'%','.join(symbols))
+        url = _BASE_URL + '/stock/market/batch?symbols=%s&types=quote'%','.join(symbols)
+        res = self.session.get(url)
 
         if res.status_code != 200:
+            self.logger.warning("Non-200 status code from %s: %d", url, res.status_code)
             raise requests.RequestException(response=res)
 
         return {k: Client._add_pretty_numbers(v['quote']) for k,v in res.json().items()}
@@ -143,9 +148,21 @@ class Client(object):
             num_stories = 1
 
         for symbol in symbols:
-            res = self.session.get(_BASE_URL + '/stock/%s/news/last/%d' % (symbol, num_stories))
+            url = _BASE_URL + '/stock/%s/news/last/%d' % (symbol, num_stories)
+            res_json = self.cache.get(url)
 
-            for n in res.json():
+            if res_json is None:
+                res = self.session.get(url)
+
+                if res.status_code != 200:
+                    self.logger.warning("Non-200 status code from %s: %d", url, res.status_code)
+                    continue
+
+                res_json = res.json()
+
+                self.cache.set(url, res_json, time=86400)  # cache for a day
+
+            for n in res_json:
                 ret.add(News.from_dict(n))
 
         return ret
@@ -177,6 +194,7 @@ class Client(object):
         res = self.session.get(url)
 
         if res.status_code != 200:
+            self.logger.warning("Non-200 status from %s: %d", url, res.status_code)
             raise requests.RequestException(response=res)
 
         ret = []
@@ -222,6 +240,7 @@ class Client(object):
         res = self.session.get(url)
 
         if res.status_code != 200:
+            self.logger.warning("Non-200 status from %s: %d", url, res.status_code)
             raise requests.RequestException(response=res)
 
         ret = dict()
