@@ -30,6 +30,5 @@ class News(object):
             self.summary == other.summary and \
             self.symbols == other.symbols
 
-
     def headline_link(self):
         return '<a href="%s">%s</a>' % (self.url, self.headline)

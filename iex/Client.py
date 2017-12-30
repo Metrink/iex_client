@@ -1,8 +1,10 @@
 import requests
+import logging
+import sys
 
 from urllib.parse import quote_plus
 from dateutil.parser import parse
-
+from iex.memory_cache import MemoryCache
 from iex.News import News
 
 _BASE_URL = 'https://api.iextrading.com/1.0'
@@ -12,10 +14,26 @@ class Client(object):
     def __init__(self, cache=None):
         self.cache = cache
 
-        if cache is None:  # use memcache if none provided
-            import memcache
+        # setup logging
+        sh = logging.StreamHandler(sys.stderr)
+        sh.setLevel(logging.DEBUG)
 
-            self.cache = memcache.Client(['127.0.0.1:11211'], debug=0)
+        sh.setFormatter(logging.Formatter('[%(asctime)s %(levelname)s] %(filename)s %(lineno)s:\t%(message)s'))
+
+        # setup our logger
+        logger = logging.getLogger('iex-client')
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(sh)
+
+        if cache is None:  # use memcached if none provided
+            logger.info("Cache is none, attempting to use memcache")
+            try:
+                import memcache
+
+                self.cache = memcache.Client(['127.0.0.1:11211'], debug=0)
+            except ImportError as e:
+                logger.warn("Importing memcache failed: %s" % str(e))
+                self.cache = MemoryCache()
 
         self.session = requests.Session()  # setup a session for reuse
 
