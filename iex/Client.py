@@ -45,6 +45,7 @@ class Client(object):
             res = self.session.get(_BASE_URL + '/ref-data/symbols?filter=symbol,name')
 
             if res.status_code != 200:
+                self.logger.warning("Non-200 response code getting symbols: %d", res.status_code)
                 raise requests.RequestException(response=res)
 
             # save off all the symbols the exchange knows about
