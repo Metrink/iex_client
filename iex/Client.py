@@ -15,15 +15,14 @@ class Client(object):
         self.cache = cache
 
         # setup logging
-        sh = logging.StreamHandler(sys.stderr)
-        sh.setLevel(logging.DEBUG)
-
-        sh.setFormatter(logging.Formatter('[%(asctime)s %(levelname)s] %(filename)s %(lineno)s:\t%(message)s'))
-
-        # setup our logger
         self.logger = logging.getLogger('iex-client')
-        self.logger.setLevel(logging.DEBUG)
-        self.logger.addHandler(sh)
+
+        if len(self.logger.handlers) == 0:
+            sh = logging.StreamHandler(sys.stderr)
+            sh.setLevel(logging.DEBUG)
+            sh.setFormatter(logging.Formatter('[%(asctime)s %(levelname)s] %(filename)s %(lineno)s:\t%(message)s'))
+            self.logger.setLevel(logging.DEBUG)
+            self.logger.addHandler(sh)
 
         if cache is None:  # use memcached if none provided
             self.logger.info("Cache is none, attempting to use memcache")
