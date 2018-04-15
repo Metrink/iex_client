@@ -106,6 +106,38 @@ class Client(object):
 
         return ret
 
+    def get_company_info(self, symbols):
+        """
+        Gets information about the company.
+        :param symbols: the symbol or list of symbols
+        :return:
+        """
+        symbols = self._fix_symbols(symbols)
+
+        if len(symbols) == 0:
+            return {}
+
+        # make the request
+        url = _BASE_URL + '/stock/market/batch?symbols=%s&types=company' % ','.join(symbols)
+
+        ret = self.cache.get(url)
+
+        if ret is not None:
+            return ret
+
+        res = self.session.get(url)
+
+        if res.status_code != 200:
+            self.logger.warning("Non-200 status code from %s: %d", url, res.status_code)
+            raise requests.RequestException(response=res)
+
+        ret = {k: v['company'] for k,v in res.json().items()}
+
+        self.cache.set(url, ret, time=86400 * 30)  # cache for 30 days
+
+        return ret
+
+
     def get_quote(self, symbols):
         """
         Gets a full quote for the stock or list of stocks.
@@ -250,7 +282,7 @@ class Client(object):
             for report in financials['financials']['financials']:
                 ret[stock].append(Client._add_pretty_numbers(report))
 
-            ret[stock] = sorted(ret[stock], key=lambda x: x['reportDate'])
+            ret[stock] = sorted(filter(lambda x: x['reportDate'] is not None, ret[stock]), key=lambda x: x['reportDate'])
 
         self.cache.set(url, ret, time=86400)  # cache for a day
 
