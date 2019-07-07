@@ -1,4 +1,5 @@
 from dateutil import parser
+from datetime import datetime
 
 
 class News(object):
@@ -6,7 +7,10 @@ class News(object):
     def from_dict(data):
         ret = News()
 
-        ret.date_time = parser.parse(data['datetime'])
+        if isinstance(data['datetime'], int):
+            ret.date_time = datetime.fromtimestamp(data['datetime'] / 1000)
+        else:
+            ret.date_time = parser.parse(data['datetime'])
         ret.headline = data['headline']
         ret.source = data['source']
         ret.url = data['url']

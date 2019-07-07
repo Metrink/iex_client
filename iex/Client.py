@@ -2,17 +2,24 @@ import requests
 import logging
 import sys
 
+from os.path import abspath
+
 from urllib.parse import quote_plus
 from dateutil.parser import parse
 from iex.memory_cache import MemoryCache
 from iex.News import News
-
-_BASE_URL = 'https://api.iextrading.com/1.0'
+from json import load
 
 
 class Client(object):
-    def __init__(self, cache=None):
+    def __init__(self, is_test=False, token_file='token.json', cache=None):
         self.cache = cache
+        self.is_test = is_test
+
+        if is_test:
+            self.base_url = 'https://sandbox.iexapis.com/stable'
+        else:
+            self.base_url = 'https://cloud.iexapis.com/stable'
 
         # setup logging
         self.logger = logging.getLogger('iex-client')
@@ -35,11 +42,23 @@ class Client(object):
 
         self.session = requests.Session()  # setup a session for reuse
 
+        # load-up the tokens
+        try:
+            with open(token_file, 'r') as fp:
+                tokens = load(fp)
+        except Exception as e:
+            self.logger.error('Error opening token file {}: {}'.format(abspath(token_file), e))
+
+        if is_test:
+            self.token = tokens['test_secret']
+        else:
+            self.token = tokens['secret']
+
         # try and get the symbols from the cache first
         self.symbols = self.cache.get('symbols')
 
         if self.symbols is None:
-            res = self.session.get(_BASE_URL + '/ref-data/symbols?filter=symbol,name')
+            res = self.session.get(self.base_url + '/ref-data/symbols?filter=symbol,name')
 
             if res.status_code != 200:
                 self.logger.warning("Non-200 response code getting symbols: %d", res.status_code)
@@ -50,6 +69,45 @@ class Client(object):
 
             # add the symbols to our cache for a day
             self.cache.set('symbols', self.symbols, 86400)
+
+    def _make_request(self, url, params, method='GET', use_cache=True):
+        """
+        Make a request adding in the proper base URL and access token
+        :param url:
+        :param params:
+        :param method:
+        :return:
+        """
+        request_url = self.base_url + url
+        cache_url = request_url + str(params).replace(' ', '')
+
+        if use_cache:  # check if it's in the cache
+            ret = self.cache.get(cache_url)
+
+            if ret is not None:
+                return ret
+
+        if method == 'GET':
+            res = self.session.get(request_url, params={**params, **{'token': self.token}})
+        elif method == 'DELETE':
+            res = self.session.delete(request_url, params={**params, **{'token': self.token}})
+        else:
+            self.logger.error("Unknown method for {}: {}".format(request_url, method))
+            raise requests.RequestException("Unknown method for {}: {}".format(request_url, method))
+
+        if res.status_code != 200:
+            print("REQUEST: {}".format(res.request.url))
+            self.logger.error("Error requesting {}: {} - {}".format(request_url, res.status_code, res.text))
+            raise requests.RequestException(response=res)
+
+        self.logger.info("Messages used: {}".format(res.headers['iexcloud-messages-used']))
+
+        res_json = res.json()
+
+        if use_cache:
+            self.cache.set(cache_url, res_json, time=86400)  # cache for a day
+
+        return res_json
 
     def _fix_symbols(self, symbols):
         if isinstance(symbols, str):
@@ -90,11 +148,12 @@ class Client(object):
         arg = str(arg).lower()
         ret = {}
 
-        for s,n in self.symbols.items():
+        for s, n in self.symbols.items():
             if arg in str(s).lower() or arg in str(n).lower():
                 ret[s] = n
 
-        self.logger.warning("Symbol %s not found", arg)
+        if len(ret) == 0:
+            self.logger.warning("Symbol %s not found", arg)
 
         return ret
 
@@ -118,25 +177,12 @@ class Client(object):
             return {}
 
         # make the request
-        url = _BASE_URL + '/stock/market/batch?symbols=%s&types=company' % ','.join(symbols)
+        res = self._make_request('/stock/market/batch', {'symbols': ','.join(symbols), 'types': 'company'})
 
-        ret = self.cache.get(url)
-
-        if ret is not None:
-            return ret
-
-        res = self.session.get(url)
-
-        if res.status_code != 200:
-            self.logger.warning("Non-200 status code from %s: %d", url, res.status_code)
-            raise requests.RequestException(response=res)
-
-        ret = {k: v['company'] for k,v in res.json().items()}
-
-        self.cache.set(url, ret, time=86400 * 30)  # cache for 30 days
+        # pull out the company
+        ret = {k: v['company'] for k, v in res.items()}
 
         return ret
-
 
     def get_quote(self, symbols):
         """
@@ -150,14 +196,9 @@ class Client(object):
             return {}
 
         # make the request
-        url = _BASE_URL + '/stock/market/batch?symbols=%s&types=quote'%','.join(symbols)
-        res = self.session.get(url)
+        res = self._make_request('/stock/market/batch', {'symbols': ','.join(symbols), 'types': 'quote'}, use_cache=False)
 
-        if res.status_code != 200:
-            self.logger.warning("Non-200 status code from %s: %d", url, res.status_code)
-            raise requests.RequestException(response=res)
-
-        return {k: Client._add_pretty_numbers(v['quote']) for k,v in res.json().items()}
+        return {k: Client._add_pretty_numbers(v['quote']) for k, v in res.items()}
 
     def get_news(self, symbols, num_stories=10):
         """
@@ -172,27 +213,17 @@ class Client(object):
         if len(symbols) == 0:
             return ret
 
+        # limit the number of stories to between 1 & 50
         if num_stories > 50:
             num_stories = 50
         if num_stories < 1:
             num_stories = 1
 
         for symbol in symbols:
-            url = _BASE_URL + '/stock/%s/news/last/%d' % (symbol, num_stories)
-            res_json = self.cache.get(url)
+            # make the request
+            res = self._make_request('/stock/{}/news/last/{}'.format(symbol, num_stories), {})
 
-            if res_json is None:
-                res = self.session.get(url)
-
-                if res.status_code != 200:
-                    self.logger.warning("Non-200 status code from %s: %d", url, res.status_code)
-                    continue
-
-                res_json = res.json()
-
-                self.cache.set(url, res_json, time=86400)  # cache for a day
-
-            for n in res_json:
+            for n in res:
                 ret.add(News.from_dict(n))
 
         return ret
@@ -214,22 +245,12 @@ class Client(object):
         else:
             symbol = list(symbols)[0]
 
-        url = _BASE_URL + '/stock/%s/chart/%s'%(symbol, range)
-
-        ret = self.cache.get(url)
-
-        if ret is not None:
-            return ret
-
-        res = self.session.get(url)
-
-        if res.status_code != 200:
-            self.logger.warning("Non-200 status from %s: %d", url, res.status_code)
-            raise requests.RequestException(response=res)
+        # make the request
+        res = self._make_request('/stock/{}/chart/{}'.format(symbol, range), {})
 
         ret = []
 
-        for point in res.json():
+        for point in res:
             if '1d' == range:
                 d = point['label']
             elif 'm' in range:
@@ -244,8 +265,6 @@ class Client(object):
                 avg = (point['open'] + point['close'] + point['high'] + point['low']) / 4.0
                 ret.append([d, avg, point['open'], point['close'], point['high'], point['low']])
 
-        self.cache.set(url, ret, time=86400)  # cache for a day
-
         return ret
 
     def get_financials(self, symbols):
@@ -259,32 +278,19 @@ class Client(object):
         if len(symbols) == 0:
             raise ValueError('Unknown symbol: ' + str(symbols))
 
-        url = _BASE_URL + '/stock/market/batch?symbols=%s&types=financials'%','.join(symbols)
-
-        ret = self.cache.get(url)
-
-        if ret is not None:
-            return ret
-
         # make the request
-        res = self.session.get(url)
-
-        if res.status_code != 200:
-            self.logger.warning("Non-200 status from %s: %d", url, res.status_code)
-            raise requests.RequestException(response=res)
+        res = self._make_request('/stock/market/batch', {'symbols': ','.join(symbols), 'types': 'financials'})
 
         ret = dict()
 
         # flatten out what's returned
-        for stock,financials in res.json().items():
+        for stock,financials in res.items():
             ret[stock] = []
 
             for report in financials['financials']['financials']:
                 ret[stock].append(Client._add_pretty_numbers(report))
 
             ret[stock] = sorted(filter(lambda x: x['reportDate'] is not None, ret[stock]), key=lambda x: x['reportDate'])
-
-        self.cache.set(url, ret, time=86400)  # cache for a day
 
         return ret
 

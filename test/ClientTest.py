@@ -2,7 +2,7 @@ import unittest
 
 from iex.Client import Client
 
-c = Client()  # call this once so we can re-use sessions
+c = Client(is_test=True, token_file='../token.json')  # call this once so we can re-use sessions
 
 
 class ClientTest(unittest.TestCase):
@@ -33,6 +33,8 @@ class ClientTest(unittest.TestCase):
 
     def test_get_quote_single(self):
         quote = c.get_quote('aapl')
+
+        print(quote)
 
         assert len(quote) != 0, 'Empty quote'
         assert 'AAPL' in quote, 'Quote not found'
