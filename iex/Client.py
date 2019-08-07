@@ -48,6 +48,7 @@ class Client(object):
                 tokens = load(fp)
         except Exception as e:
             self.logger.error('Error opening token file {}: {}'.format(abspath(token_file), e))
+            raise ValueError(e)
 
         if is_test:
             self.token = tokens['test_secret']
@@ -58,10 +59,10 @@ class Client(object):
         self.symbols = self.cache.get('symbols')
 
         if self.symbols is None:
-            res = self.session.get(self.base_url + '/ref-data/symbols?filter=symbol,name')
+            res = self.session.get(self.base_url + '/ref-data/symbols?filter=symbol,name&token={}'.format(self.token))
 
             if res.status_code != 200:
-                self.logger.warning("Non-200 response code getting symbols: %d", res.status_code)
+                self.logger.warning("Non-200 response code ({}) getting symbols: {}".format(res.status_code, res.text))
                 raise requests.RequestException(response=res)
 
             # save off all the symbols the exchange knows about
